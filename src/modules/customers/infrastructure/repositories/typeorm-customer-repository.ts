@@ -1,27 +1,30 @@
-import { Brackets, DataSource } from 'typeorm';
+import { Brackets, DataSource } from "typeorm";
 
-import { AppError } from '../../../../shared/domain/app-error';
-import { calculateYearsBetween } from '../../../../shared/utils/date';
-import { normalizeDigits } from '../../../../shared/utils/document';
-import { normalizeEmail, normalizeNullableText } from '../../../../shared/utils/text';
+import { AppError } from "../../../../shared/domain/app-error";
+import { calculateYearsBetween } from "../../../../shared/utils/date";
+import { normalizeDigits } from "../../../../shared/utils/document";
+import {
+  normalizeEmail,
+  normalizeNullableText,
+} from "../../../../shared/utils/text";
 import type {
   CreateCustomerInput,
   ResponsibleInput,
   UpdateCustomerInput,
   UpdateResponsibleInput,
-} from '../../interfaces/http/customer-schemas';
-import { CustomerAddressOrmEntity } from '../orm/entities/customer-address.orm-entity';
-import { CustomerCommunicationPreferenceOrmEntity } from '../orm/entities/customer-communication-preference.orm-entity';
-import { CustomerCompanyProfileOrmEntity } from '../orm/entities/customer-company-profile.orm-entity';
-import { CustomerContactOrmEntity } from '../orm/entities/customer-contact.orm-entity';
-import { CustomerEmailOrmEntity } from '../orm/entities/customer-email.orm-entity';
-import { CustomerFinancialProfileOrmEntity } from '../orm/entities/customer-financial-profile.orm-entity';
-import { CustomerIndividualProfileOrmEntity } from '../orm/entities/customer-individual-profile.orm-entity';
-import { CustomerOrmEntity } from '../orm/entities/customer.orm-entity';
-import { ResponsibleAddressOrmEntity } from '../orm/entities/responsible-address.orm-entity';
-import { ResponsibleContactOrmEntity } from '../orm/entities/responsible-contact.orm-entity';
-import { ResponsibleEmailOrmEntity } from '../orm/entities/responsible-email.orm-entity';
-import { ResponsibleOrmEntity } from '../orm/entities/responsible.orm-entity';
+} from "../../interfaces/http/customer-schemas";
+import { CustomerAddressOrmEntity } from "../orm/entities/customer-address.orm-entity";
+import { CustomerCommunicationPreferenceOrmEntity } from "../orm/entities/customer-communication-preference.orm-entity";
+import { CustomerCompanyProfileOrmEntity } from "../orm/entities/customer-company-profile.orm-entity";
+import { CustomerContactOrmEntity } from "../orm/entities/customer-contact.orm-entity";
+import { CustomerEmailOrmEntity } from "../orm/entities/customer-email.orm-entity";
+import { CustomerFinancialProfileOrmEntity } from "../orm/entities/customer-financial-profile.orm-entity";
+import { CustomerIndividualProfileOrmEntity } from "../orm/entities/customer-individual-profile.orm-entity";
+import { CustomerOrmEntity } from "../orm/entities/customer.orm-entity";
+import { ResponsibleAddressOrmEntity } from "../orm/entities/responsible-address.orm-entity";
+import { ResponsibleContactOrmEntity } from "../orm/entities/responsible-contact.orm-entity";
+import { ResponsibleEmailOrmEntity } from "../orm/entities/responsible-email.orm-entity";
+import { ResponsibleOrmEntity } from "../orm/entities/responsible.orm-entity";
 
 const customerRelations = {
   individualProfile: true,
@@ -54,7 +57,18 @@ const toNullableNumber = (value: string | null | undefined): number | null => {
   return Number(value);
 };
 
-const calculateProfitability = (consumedAmount: number | null, costAmount: number | null) => {
+const normalizeComparableText = (value: string | null | undefined) =>
+  (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+
+const calculateProfitability = (
+  consumedAmount: number | null,
+  costAmount: number | null,
+) => {
   if (consumedAmount === null && costAmount === null) {
     return {
       profitabilityAmount: null,
@@ -66,7 +80,9 @@ const calculateProfitability = (consumedAmount: number | null, costAmount: numbe
   const safeCostAmount = costAmount ?? 0;
   const profitabilityAmount = safeConsumedAmount - safeCostAmount;
   const profitabilityPercentage =
-    safeConsumedAmount === 0 ? 0 : Number(((profitabilityAmount / safeConsumedAmount) * 100).toFixed(2));
+    safeConsumedAmount === 0
+      ? 0
+      : Number(((profitabilityAmount / safeConsumedAmount) * 100).toFixed(2));
 
   return {
     profitabilityAmount: profitabilityAmount.toFixed(2),
@@ -84,21 +100,32 @@ const applyCustomerCore = (
 
   if (input.core) {
     customer.active = input.core.active ?? customer.active ?? true;
-    customer.customerSince = input.core.customerSince ?? customer.customerSince ?? null;
-    customer.classification = input.core.classification ?? customer.classification ?? null;
-    customer.referralSource = input.core.referralSource ?? customer.referralSource ?? null;
-    customer.referralName = input.core.referralName ?? customer.referralName ?? null;
-    customer.allowsInvoice = input.core.allowsInvoice ?? customer.allowsInvoice ?? false;
-    customer.hasRestriction = input.core.hasRestriction ?? customer.hasRestriction ?? false;
-    customer.isFinalConsumer = input.core.isFinalConsumer ?? customer.isFinalConsumer ?? false;
-    customer.isRuralProducer = input.core.isRuralProducer ?? customer.isRuralProducer ?? false;
+    customer.customerSince =
+      input.core.customerSince ?? customer.customerSince ?? null;
+    customer.classification =
+      input.core.classification ?? customer.classification ?? null;
+    customer.referralSource =
+      input.core.referralSource ?? customer.referralSource ?? null;
+    customer.referralName =
+      input.core.referralName ?? customer.referralName ?? null;
+    customer.allowsInvoice =
+      input.core.allowsInvoice ?? customer.allowsInvoice ?? false;
+    customer.hasRestriction =
+      input.core.hasRestriction ?? customer.hasRestriction ?? false;
+    customer.isFinalConsumer =
+      input.core.isFinalConsumer ?? customer.isFinalConsumer ?? false;
+    customer.isRuralProducer =
+      input.core.isRuralProducer ?? customer.isRuralProducer ?? false;
     customer.notes = input.core.notes ?? customer.notes ?? null;
   }
 };
 
 const buildCustomerAddress = (
   customer: CustomerOrmEntity,
-  inputAddress: CreateCustomerInput['address'] | UpdateCustomerInput['address'] | undefined,
+  inputAddress:
+    | CreateCustomerInput["address"]
+    | UpdateCustomerInput["address"]
+    | undefined,
   existingAddress?: CustomerAddressOrmEntity | null,
 ): CustomerAddressOrmEntity | null => {
   if (!inputAddress && !existingAddress) {
@@ -112,23 +139,32 @@ const buildCustomerAddress = (
 
   address.customer = customer;
   address.customerId = customer.id;
-  address.zipCode = normalizeDigits(inputAddress?.zipCode) ?? existingAddress?.zipCode ?? null;
+  address.zipCode =
+    normalizeDigits(inputAddress?.zipCode) ?? existingAddress?.zipCode ?? null;
   address.street = inputAddress?.street ?? existingAddress?.street ?? null;
   address.number = inputAddress?.number ?? existingAddress?.number ?? null;
-  address.complement = inputAddress?.complement ?? existingAddress?.complement ?? null;
-  address.district = inputAddress?.district ?? existingAddress?.district ?? null;
+  address.complement =
+    inputAddress?.complement ?? existingAddress?.complement ?? null;
+  address.district =
+    inputAddress?.district ?? existingAddress?.district ?? null;
   address.city = inputAddress?.city ?? existingAddress?.city ?? null;
   address.state = inputAddress?.state ?? existingAddress?.state ?? null;
-  address.cityCode = inputAddress?.cityCode ?? existingAddress?.cityCode ?? null;
-  address.stateCode = inputAddress?.stateCode ?? existingAddress?.stateCode ?? null;
-  address.reference = inputAddress?.reference ?? existingAddress?.reference ?? null;
+  address.cityCode =
+    inputAddress?.cityCode ?? existingAddress?.cityCode ?? null;
+  address.stateCode =
+    inputAddress?.stateCode ?? existingAddress?.stateCode ?? null;
+  address.reference =
+    inputAddress?.reference ?? existingAddress?.reference ?? null;
 
   return address;
 };
 
 const buildFinancialProfile = (
   customer: CustomerOrmEntity,
-  inputFinancial: CreateCustomerInput['financial'] | UpdateCustomerInput['financial'] | undefined,
+  inputFinancial:
+    | CreateCustomerInput["financial"]
+    | UpdateCustomerInput["financial"]
+    | undefined,
   existingFinancial?: CustomerFinancialProfileOrmEntity | null,
 ): CustomerFinancialProfileOrmEntity | null => {
   if (!inputFinancial && !existingFinancial) {
@@ -141,68 +177,139 @@ const buildFinancialProfile = (
   }
 
   const consumedAmount =
-    inputFinancial?.consumedAmount ?? toNullableNumber(existingFinancial?.consumedAmount ?? null);
-  const costAmount = inputFinancial?.costAmount ?? toNullableNumber(existingFinancial?.costAmount ?? null);
-  const profitability = calculateProfitability(consumedAmount ?? null, costAmount ?? null);
+    inputFinancial?.consumedAmount ??
+    toNullableNumber(existingFinancial?.consumedAmount ?? null);
+  const costAmount =
+    inputFinancial?.costAmount ??
+    toNullableNumber(existingFinancial?.costAmount ?? null);
+  const profitability = calculateProfitability(
+    consumedAmount ?? null,
+    costAmount ?? null,
+  );
 
   financialProfile.customer = customer;
   financialProfile.customerId = customer.id;
   financialProfile.creditLimit =
-    toMonetaryString(inputFinancial?.creditLimit) ?? existingFinancial?.creditLimit ?? null;
+    toMonetaryString(inputFinancial?.creditLimit) ??
+    existingFinancial?.creditLimit ??
+    null;
   financialProfile.amountSpent =
-    toMonetaryString(inputFinancial?.amountSpent) ?? existingFinancial?.amountSpent ?? null;
-  financialProfile.balance = toMonetaryString(inputFinancial?.balance) ?? existingFinancial?.balance ?? null;
+    toMonetaryString(inputFinancial?.amountSpent) ??
+    existingFinancial?.amountSpent ??
+    null;
+  financialProfile.balance =
+    toMonetaryString(inputFinancial?.balance) ??
+    existingFinancial?.balance ??
+    null;
   financialProfile.consumedAmount = toMonetaryString(consumedAmount) ?? null;
   financialProfile.costAmount = toMonetaryString(costAmount) ?? null;
   financialProfile.profitabilityAmount = profitability.profitabilityAmount;
-  financialProfile.profitabilityPercentage = profitability.profitabilityPercentage;
+  financialProfile.profitabilityPercentage =
+    profitability.profitabilityPercentage;
   financialProfile.commissionPercentage =
-    inputFinancial?.commissionPercentage !== undefined && inputFinancial?.commissionPercentage !== null
+    inputFinancial?.commissionPercentage !== undefined &&
+    inputFinancial?.commissionPercentage !== null
       ? inputFinancial.commissionPercentage.toFixed(2)
-      : existingFinancial?.commissionPercentage ?? null;
-  financialProfile.paymentDay = inputFinancial?.paymentDay ?? existingFinancial?.paymentDay ?? null;
+      : (existingFinancial?.commissionPercentage ?? null);
+  financialProfile.paymentDay =
+    inputFinancial?.paymentDay ?? existingFinancial?.paymentDay ?? null;
   financialProfile.pixKeyOrDescription =
-    inputFinancial?.pixKeyOrDescription ?? existingFinancial?.pixKeyOrDescription ?? null;
+    inputFinancial?.pixKeyOrDescription ??
+    existingFinancial?.pixKeyOrDescription ??
+    null;
 
   return financialProfile;
 };
 
 const buildCustomerContacts = (
   customer: CustomerOrmEntity,
-  contacts: CreateCustomerInput['contacts'] | UpdateCustomerInput['contacts'] | undefined,
+  contacts:
+    | CreateCustomerInput["contacts"]
+    | UpdateCustomerInput["contacts"]
+    | undefined,
   existingContacts?: CustomerContactOrmEntity[],
 ): CustomerContactOrmEntity[] => {
   if (!contacts) {
     return existingContacts ?? [];
   }
 
+  const availableContacts = [...(existingContacts ?? [])];
+
   return contacts.map((contact) => {
+    const normalizedValue =
+      normalizeDigits(contact.value) ?? contact.value.trim();
+    const normalizedLabel = normalizeNullableText(contact.label);
+    const matchingContactIndex = availableContacts.findIndex(
+      (existingContact) => {
+        if (contact.id && existingContact.id === contact.id) {
+          return true;
+        }
+
+        return (
+          existingContact.value === normalizedValue &&
+          existingContact.type === contact.type &&
+          existingContact.isWhatsapp === (contact.isWhatsapp ?? false) &&
+          existingContact.label === normalizedLabel
+        );
+      },
+    );
+    const existingContact =
+      matchingContactIndex >= 0
+        ? availableContacts.splice(matchingContactIndex, 1)[0]
+        : null;
     const entity = new CustomerContactOrmEntity();
+    if (existingContact?.id) {
+      entity.id = existingContact.id;
+    }
     entity.customer = customer;
     entity.customerId = customer.id;
-    entity.value = normalizeDigits(contact.value) ?? contact.value.trim();
+    entity.value = normalizedValue;
     entity.type = contact.type;
     entity.isWhatsapp = contact.isWhatsapp ?? false;
-    entity.label = normalizeNullableText(contact.label);
+    entity.label = normalizedLabel;
     return entity;
   });
 };
 
 const buildCustomerEmails = (
   customer: CustomerOrmEntity,
-  emails: CreateCustomerInput['emails'] | UpdateCustomerInput['emails'] | undefined,
+  emails:
+    | CreateCustomerInput["emails"]
+    | UpdateCustomerInput["emails"]
+    | undefined,
   existingEmails?: CustomerEmailOrmEntity[],
 ): CustomerEmailOrmEntity[] => {
   if (!emails) {
     return existingEmails ?? [];
   }
 
+  const availableEmails = [...(existingEmails ?? [])];
+
   return emails.map((email) => {
+    const normalizedEmail = normalizeEmail(email.email);
+    const normalizedLabel = normalizeNullableText(email.label);
+    const matchingEmailIndex = availableEmails.findIndex((existingEmail) => {
+      if (email.id && existingEmail.id === email.id) {
+        return true;
+      }
+
+      return (
+        existingEmail.email === normalizedEmail &&
+        existingEmail.label === normalizedLabel
+      );
+    });
+    const existingEmail =
+      matchingEmailIndex >= 0
+        ? availableEmails.splice(matchingEmailIndex, 1)[0]
+        : null;
     const entity = new CustomerEmailOrmEntity();
+    if (existingEmail?.id) {
+      entity.id = existingEmail.id;
+    }
     entity.customer = customer;
     entity.customerId = customer.id;
-    entity.email = normalizeEmail(email.email);
-    entity.label = normalizeNullableText(email.label);
+    entity.email = normalizedEmail;
+    entity.label = normalizedLabel;
     return entity;
   });
 };
@@ -210,8 +317,8 @@ const buildCustomerEmails = (
 const buildCommunicationPreferences = (
   customer: CustomerOrmEntity,
   preferences:
-    | CreateCustomerInput['communicationPreferences']
-    | UpdateCustomerInput['communicationPreferences']
+    | CreateCustomerInput["communicationPreferences"]
+    | UpdateCustomerInput["communicationPreferences"]
     | undefined,
   existingPreferences?: CustomerCommunicationPreferenceOrmEntity[],
 ): CustomerCommunicationPreferenceOrmEntity[] => {
@@ -219,8 +326,29 @@ const buildCommunicationPreferences = (
     return existingPreferences ?? [];
   }
 
+  const availablePreferences = [...(existingPreferences ?? [])];
+
   return preferences.map((preference) => {
+    const matchingPreferenceIndex = availablePreferences.findIndex(
+      (existingPreference) => {
+        if (preference.id && existingPreference.id === preference.id) {
+          return true;
+        }
+
+        return (
+          existingPreference.channel === preference.channel &&
+          existingPreference.topic === preference.topic
+        );
+      },
+    );
+    const existingPreference =
+      matchingPreferenceIndex >= 0
+        ? availablePreferences.splice(matchingPreferenceIndex, 1)[0]
+        : null;
     const entity = new CustomerCommunicationPreferenceOrmEntity();
+    if (existingPreference?.id) {
+      entity.id = existingPreference.id;
+    }
     entity.customer = customer;
     entity.customerId = customer.id;
     entity.channel = preference.channel;
@@ -232,10 +360,15 @@ const buildCommunicationPreferences = (
 
 const buildIndividualProfile = (
   customer: CustomerOrmEntity,
-  profileInput: Extract<CreateCustomerInput, { personType: 'INDIVIDUAL' }>['profile'] | Record<string, unknown>,
+  profileInput:
+    | Extract<CreateCustomerInput, { personType: "INDIVIDUAL" }>["profile"]
+    | Record<string, unknown>,
   existingProfile?: CustomerIndividualProfileOrmEntity | null,
 ): CustomerIndividualProfileOrmEntity => {
-  const input = profileInput as Extract<CreateCustomerInput, { personType: 'INDIVIDUAL' }>['profile'];
+  const input = profileInput as Extract<
+    CreateCustomerInput,
+    { personType: "INDIVIDUAL" }
+  >["profile"];
   const profile = new CustomerIndividualProfileOrmEntity();
   if (existingProfile?.id) {
     profile.id = existingProfile.id;
@@ -243,26 +376,34 @@ const buildIndividualProfile = (
 
   profile.customer = customer;
   profile.customerId = customer.id;
-  profile.cpf = normalizeDigits(input.cpf) ?? existingProfile?.cpf ?? '';
+  profile.cpf = normalizeDigits(input.cpf) ?? existingProfile?.cpf ?? "";
   profile.rg = input.rg ?? existingProfile?.rg ?? null;
-  profile.fullName = input.fullName ?? existingProfile?.fullName ?? '';
+  profile.fullName = input.fullName ?? existingProfile?.fullName ?? "";
   profile.nickname = input.nickname ?? existingProfile?.nickname ?? null;
   profile.birthDate = input.birthDate ?? existingProfile?.birthDate ?? null;
   profile.gender = input.gender ?? existingProfile?.gender ?? null;
-  profile.familyRelationship = input.familyRelationship ?? existingProfile?.familyRelationship ?? null;
+  profile.familyRelationship =
+    input.familyRelationship ?? existingProfile?.familyRelationship ?? null;
   profile.profession = input.profession ?? existingProfile?.profession ?? null;
   profile.driverLicenseExpiresAt =
-    input.driverLicenseExpiresAt ?? existingProfile?.driverLicenseExpiresAt ?? null;
+    input.driverLicenseExpiresAt ??
+    existingProfile?.driverLicenseExpiresAt ??
+    null;
 
   return profile;
 };
 
 const buildCompanyProfile = (
   customer: CustomerOrmEntity,
-  profileInput: Extract<CreateCustomerInput, { personType: 'COMPANY' }>['profile'] | Record<string, unknown>,
+  profileInput:
+    | Extract<CreateCustomerInput, { personType: "COMPANY" }>["profile"]
+    | Record<string, unknown>,
   existingProfile?: CustomerCompanyProfileOrmEntity | null,
 ): CustomerCompanyProfileOrmEntity => {
-  const input = profileInput as Extract<CreateCustomerInput, { personType: 'COMPANY' }>['profile'];
+  const input = profileInput as Extract<
+    CreateCustomerInput,
+    { personType: "COMPANY" }
+  >["profile"];
   const profile = new CustomerCompanyProfileOrmEntity();
   if (existingProfile?.id) {
     profile.id = existingProfile.id;
@@ -270,24 +411,36 @@ const buildCompanyProfile = (
 
   profile.customer = customer;
   profile.customerId = customer.id;
-  profile.cnpj = normalizeDigits(input.cnpj) ?? existingProfile?.cnpj ?? '';
-  profile.stateRegistration = input.stateRegistration ?? existingProfile?.stateRegistration ?? null;
-  profile.corporateName = input.corporateName ?? existingProfile?.corporateName ?? '';
-  profile.tradeName = input.tradeName ?? existingProfile?.tradeName ?? '';
+  profile.cnpj = normalizeDigits(input.cnpj) ?? existingProfile?.cnpj ?? "";
+  profile.stateRegistration =
+    input.stateRegistration ?? existingProfile?.stateRegistration ?? null;
+  profile.corporateName =
+    input.corporateName ?? existingProfile?.corporateName ?? "";
+  profile.tradeName = input.tradeName ?? existingProfile?.tradeName ?? "";
   profile.municipalRegistration =
-    input.municipalRegistration ?? existingProfile?.municipalRegistration ?? null;
-  profile.suframaRegistration = input.suframaRegistration ?? existingProfile?.suframaRegistration ?? null;
-  profile.taxpayerType = input.taxpayerType ?? existingProfile?.taxpayerType ?? null;
-  profile.openingDate = input.openingDate ?? existingProfile?.openingDate ?? null;
-  profile.companySegment = input.companySegment ?? existingProfile?.companySegment ?? null;
-  profile.issWithheld = input.issWithheld ?? existingProfile?.issWithheld ?? false;
+    input.municipalRegistration ??
+    existingProfile?.municipalRegistration ??
+    null;
+  profile.suframaRegistration =
+    input.suframaRegistration ?? existingProfile?.suframaRegistration ?? null;
+  profile.taxpayerType =
+    input.taxpayerType ?? existingProfile?.taxpayerType ?? null;
+  profile.openingDate =
+    input.openingDate ?? existingProfile?.openingDate ?? null;
+  profile.companySegment =
+    input.companySegment ?? existingProfile?.companySegment ?? null;
+  profile.issWithheld =
+    input.issWithheld ?? existingProfile?.issWithheld ?? false;
 
   return profile;
 };
 
 const buildResponsibleAddress = (
   responsible: ResponsibleOrmEntity,
-  inputAddress: ResponsibleInput['address'] | UpdateResponsibleInput['address'] | undefined,
+  inputAddress:
+    | ResponsibleInput["address"]
+    | UpdateResponsibleInput["address"]
+    | undefined,
   existingAddress?: ResponsibleAddressOrmEntity | null,
 ): ResponsibleAddressOrmEntity | null => {
   if (!inputAddress && !existingAddress) {
@@ -301,56 +454,115 @@ const buildResponsibleAddress = (
 
   address.responsible = responsible;
   address.responsibleId = responsible.id;
-  address.zipCode = normalizeDigits(inputAddress?.zipCode) ?? existingAddress?.zipCode ?? null;
+  address.zipCode =
+    normalizeDigits(inputAddress?.zipCode) ?? existingAddress?.zipCode ?? null;
   address.street = inputAddress?.street ?? existingAddress?.street ?? null;
   address.number = inputAddress?.number ?? existingAddress?.number ?? null;
-  address.complement = inputAddress?.complement ?? existingAddress?.complement ?? null;
-  address.district = inputAddress?.district ?? existingAddress?.district ?? null;
+  address.complement =
+    inputAddress?.complement ?? existingAddress?.complement ?? null;
+  address.district =
+    inputAddress?.district ?? existingAddress?.district ?? null;
   address.city = inputAddress?.city ?? existingAddress?.city ?? null;
   address.state = inputAddress?.state ?? existingAddress?.state ?? null;
-  address.cityCode = inputAddress?.cityCode ?? existingAddress?.cityCode ?? null;
-  address.stateCode = inputAddress?.stateCode ?? existingAddress?.stateCode ?? null;
-  address.reference = inputAddress?.reference ?? existingAddress?.reference ?? null;
+  address.cityCode =
+    inputAddress?.cityCode ?? existingAddress?.cityCode ?? null;
+  address.stateCode =
+    inputAddress?.stateCode ?? existingAddress?.stateCode ?? null;
+  address.reference =
+    inputAddress?.reference ?? existingAddress?.reference ?? null;
 
   return address;
 };
 
 const buildResponsibleContacts = (
   responsible: ResponsibleOrmEntity,
-  contacts: ResponsibleInput['contacts'] | UpdateResponsibleInput['contacts'] | undefined,
+  contacts:
+    | ResponsibleInput["contacts"]
+    | UpdateResponsibleInput["contacts"]
+    | undefined,
   existingContacts?: ResponsibleContactOrmEntity[],
 ): ResponsibleContactOrmEntity[] => {
   if (!contacts) {
     return existingContacts ?? [];
   }
 
+  const availableContacts = [...(existingContacts ?? [])];
+
   return contacts.map((contact) => {
+    const normalizedValue =
+      normalizeDigits(contact.value) ?? contact.value.trim();
+    const normalizedLabel = normalizeNullableText(contact.label);
+    const matchingContactIndex = availableContacts.findIndex(
+      (existingContact) => {
+        if (contact.id && existingContact.id === contact.id) {
+          return true;
+        }
+
+        return (
+          existingContact.value === normalizedValue &&
+          existingContact.type === contact.type &&
+          existingContact.isWhatsapp === (contact.isWhatsapp ?? false) &&
+          existingContact.label === normalizedLabel
+        );
+      },
+    );
+    const existingContact =
+      matchingContactIndex >= 0
+        ? availableContacts.splice(matchingContactIndex, 1)[0]
+        : null;
     const entity = new ResponsibleContactOrmEntity();
+    if (existingContact?.id) {
+      entity.id = existingContact.id;
+    }
     entity.responsible = responsible;
     entity.responsibleId = responsible.id;
-    entity.value = normalizeDigits(contact.value) ?? contact.value.trim();
+    entity.value = normalizedValue;
     entity.type = contact.type;
     entity.isWhatsapp = contact.isWhatsapp ?? false;
-    entity.label = normalizeNullableText(contact.label);
+    entity.label = normalizedLabel;
     return entity;
   });
 };
 
 const buildResponsibleEmails = (
   responsible: ResponsibleOrmEntity,
-  emails: ResponsibleInput['emails'] | UpdateResponsibleInput['emails'] | undefined,
+  emails:
+    | ResponsibleInput["emails"]
+    | UpdateResponsibleInput["emails"]
+    | undefined,
   existingEmails?: ResponsibleEmailOrmEntity[],
 ): ResponsibleEmailOrmEntity[] => {
   if (!emails) {
     return existingEmails ?? [];
   }
 
+  const availableEmails = [...(existingEmails ?? [])];
+
   return emails.map((email) => {
+    const normalizedEmail = normalizeEmail(email.email);
+    const normalizedLabel = normalizeNullableText(email.label);
+    const matchingEmailIndex = availableEmails.findIndex((existingEmail) => {
+      if (email.id && existingEmail.id === email.id) {
+        return true;
+      }
+
+      return (
+        existingEmail.email === normalizedEmail &&
+        existingEmail.label === normalizedLabel
+      );
+    });
+    const existingEmail =
+      matchingEmailIndex >= 0
+        ? availableEmails.splice(matchingEmailIndex, 1)[0]
+        : null;
     const entity = new ResponsibleEmailOrmEntity();
+    if (existingEmail?.id) {
+      entity.id = existingEmail.id;
+    }
     entity.responsible = responsible;
     entity.responsibleId = responsible.id;
-    entity.email = normalizeEmail(email.email);
-    entity.label = normalizeNullableText(email.label);
+    entity.email = normalizedEmail;
+    entity.label = normalizedLabel;
     return entity;
   });
 };
@@ -367,26 +579,47 @@ const buildResponsible = (
 
   responsible.customer = customer;
   responsible.customerId = customer.id;
-  responsible.fullName = input.fullName ?? existingResponsible?.fullName ?? '';
-  responsible.cpf = normalizeDigits(input.cpf) ?? existingResponsible?.cpf ?? null;
+  responsible.fullName = input.fullName ?? existingResponsible?.fullName ?? "";
+  responsible.cpf =
+    normalizeDigits(input.cpf) ?? existingResponsible?.cpf ?? null;
   responsible.rg = input.rg ?? existingResponsible?.rg ?? null;
-  responsible.nickname = input.nickname ?? existingResponsible?.nickname ?? null;
-  responsible.birthDate = input.birthDate ?? existingResponsible?.birthDate ?? null;
+  responsible.nickname =
+    input.nickname ?? existingResponsible?.nickname ?? null;
+  responsible.birthDate =
+    input.birthDate ?? existingResponsible?.birthDate ?? null;
   responsible.gender = input.gender ?? existingResponsible?.gender ?? null;
   responsible.familyRelationship =
     input.familyRelationship ?? existingResponsible?.familyRelationship ?? null;
   responsible.role = input.role ?? existingResponsible?.role ?? null;
-  responsible.profession = input.profession ?? existingResponsible?.profession ?? null;
+  responsible.profession =
+    input.profession ?? existingResponsible?.profession ?? null;
   responsible.driverLicenseExpiresAt =
-    input.driverLicenseExpiresAt ?? existingResponsible?.driverLicenseExpiresAt ?? null;
+    input.driverLicenseExpiresAt ??
+    existingResponsible?.driverLicenseExpiresAt ??
+    null;
   responsible.active = input.active ?? existingResponsible?.active ?? true;
-  responsible.customerSince = input.customerSince ?? existingResponsible?.customerSince ?? null;
-  responsible.referralSource = input.referralSource ?? existingResponsible?.referralSource ?? null;
-  responsible.referralName = input.referralName ?? existingResponsible?.referralName ?? null;
+  responsible.customerSince =
+    input.customerSince ?? existingResponsible?.customerSince ?? null;
+  responsible.referralSource =
+    input.referralSource ?? existingResponsible?.referralSource ?? null;
+  responsible.referralName =
+    input.referralName ?? existingResponsible?.referralName ?? null;
   responsible.notes = input.notes ?? existingResponsible?.notes ?? null;
-  responsible.address = buildResponsibleAddress(responsible, input.address, existingResponsible?.address);
-  responsible.contacts = buildResponsibleContacts(responsible, input.contacts, existingResponsible?.contacts);
-  responsible.emails = buildResponsibleEmails(responsible, input.emails, existingResponsible?.emails);
+  responsible.address = buildResponsibleAddress(
+    responsible,
+    input.address,
+    existingResponsible?.address,
+  );
+  responsible.contacts = buildResponsibleContacts(
+    responsible,
+    input.contacts,
+    existingResponsible?.contacts,
+  );
+  responsible.emails = buildResponsibleEmails(
+    responsible,
+    input.emails,
+    existingResponsible?.emails,
+  );
 
   return responsible;
 };
@@ -435,7 +668,9 @@ const mapResponsibleResponse = (responsible: ResponsibleOrmEntity) => ({
     label: email.label,
   })),
   computed: {
-    age: calculateYearsBetween(responsible.birthDate ? new Date(responsible.birthDate) : null),
+    age: calculateYearsBetween(
+      responsible.birthDate ? new Date(responsible.birthDate) : null,
+    ),
   },
 });
 
@@ -455,7 +690,7 @@ export const mapCustomerResponse = (customer: CustomerOrmEntity) => ({
     notes: customer.notes,
   },
   profile:
-    customer.personType === 'INDIVIDUAL'
+    customer.personType === "INDIVIDUAL"
       ? {
           cpf: customer.individualProfile?.cpf ?? null,
           rg: customer.individualProfile?.rg ?? null,
@@ -463,17 +698,21 @@ export const mapCustomerResponse = (customer: CustomerOrmEntity) => ({
           nickname: customer.individualProfile?.nickname ?? null,
           birthDate: customer.individualProfile?.birthDate ?? null,
           gender: customer.individualProfile?.gender ?? null,
-          familyRelationship: customer.individualProfile?.familyRelationship ?? null,
+          familyRelationship:
+            customer.individualProfile?.familyRelationship ?? null,
           profession: customer.individualProfile?.profession ?? null,
-          driverLicenseExpiresAt: customer.individualProfile?.driverLicenseExpiresAt ?? null,
+          driverLicenseExpiresAt:
+            customer.individualProfile?.driverLicenseExpiresAt ?? null,
         }
       : {
           cnpj: customer.companyProfile?.cnpj ?? null,
           stateRegistration: customer.companyProfile?.stateRegistration ?? null,
           corporateName: customer.companyProfile?.corporateName ?? null,
           tradeName: customer.companyProfile?.tradeName ?? null,
-          municipalRegistration: customer.companyProfile?.municipalRegistration ?? null,
-          suframaRegistration: customer.companyProfile?.suframaRegistration ?? null,
+          municipalRegistration:
+            customer.companyProfile?.municipalRegistration ?? null,
+          suframaRegistration:
+            customer.companyProfile?.suframaRegistration ?? null,
           taxpayerType: customer.companyProfile?.taxpayerType ?? null,
           openingDate: customer.companyProfile?.openingDate ?? null,
           companySegment: customer.companyProfile?.companySegment ?? null,
@@ -484,11 +723,19 @@ export const mapCustomerResponse = (customer: CustomerOrmEntity) => ({
         creditLimit: toNullableNumber(customer.financialProfile.creditLimit),
         amountSpent: toNullableNumber(customer.financialProfile.amountSpent),
         balance: toNullableNumber(customer.financialProfile.balance),
-        consumedAmount: toNullableNumber(customer.financialProfile.consumedAmount),
+        consumedAmount: toNullableNumber(
+          customer.financialProfile.consumedAmount,
+        ),
         costAmount: toNullableNumber(customer.financialProfile.costAmount),
-        profitabilityAmount: toNullableNumber(customer.financialProfile.profitabilityAmount),
-        profitabilityPercentage: toNullableNumber(customer.financialProfile.profitabilityPercentage),
-        commissionPercentage: toNullableNumber(customer.financialProfile.commissionPercentage),
+        profitabilityAmount: toNullableNumber(
+          customer.financialProfile.profitabilityAmount,
+        ),
+        profitabilityPercentage: toNullableNumber(
+          customer.financialProfile.profitabilityPercentage,
+        ),
+        commissionPercentage: toNullableNumber(
+          customer.financialProfile.commissionPercentage,
+        ),
         paymentDay: customer.financialProfile.paymentDay,
         pixKeyOrDescription: customer.financialProfile.pixKeyOrDescription,
       }
@@ -519,22 +766,32 @@ export const mapCustomerResponse = (customer: CustomerOrmEntity) => ({
     email: email.email,
     label: email.label,
   })),
-  communicationPreferences: customer.communicationPreferences.map((preference) => ({
-    id: preference.id,
-    channel: preference.channel,
-    topic: preference.topic,
-    enabled: preference.enabled,
-  })),
+  communicationPreferences: customer.communicationPreferences.map(
+    (preference) => ({
+      id: preference.id,
+      channel: preference.channel,
+      topic: preference.topic,
+      enabled: preference.enabled,
+    }),
+  ),
   responsibles: customer.responsibles.map(mapResponsibleResponse),
   computed: {
     customerAge: calculateYearsBetween(
-      customer.individualProfile?.birthDate ? new Date(customer.individualProfile.birthDate) : null,
+      customer.individualProfile?.birthDate
+        ? new Date(customer.individualProfile.birthDate)
+        : null,
     ),
     companyAge: calculateYearsBetween(
-      customer.companyProfile?.openingDate ? new Date(customer.companyProfile.openingDate) : null,
+      customer.companyProfile?.openingDate
+        ? new Date(customer.companyProfile.openingDate)
+        : null,
     ),
-    profitabilityAmount: toNullableNumber(customer.financialProfile?.profitabilityAmount),
-    profitabilityPercentage: toNullableNumber(customer.financialProfile?.profitabilityPercentage),
+    profitabilityAmount: toNullableNumber(
+      customer.financialProfile?.profitabilityAmount,
+    ),
+    profitabilityPercentage: toNullableNumber(
+      customer.financialProfile?.profitabilityPercentage,
+    ),
   },
   createdAt: customer.createdAt,
   updatedAt: customer.updatedAt,
@@ -543,7 +800,10 @@ export const mapCustomerResponse = (customer: CustomerOrmEntity) => ({
 export class TypeOrmCustomerRepository {
   constructor(private readonly dataSource: DataSource) {}
 
-  private async ensureIndividualCpfIsAvailable(cpf: string, customerId?: string): Promise<void> {
+  private async ensureIndividualCpfIsAvailable(
+    cpf: string,
+    customerId?: string,
+  ): Promise<void> {
     const normalizedCpf = normalizeDigits(cpf);
 
     if (!normalizedCpf) {
@@ -552,24 +812,32 @@ export class TypeOrmCustomerRepository {
 
     const query = this.dataSource
       .getRepository(CustomerIndividualProfileOrmEntity)
-      .createQueryBuilder('profile')
-      .where('profile.cpf = :cpf', { cpf: normalizedCpf });
+      .createQueryBuilder("profile")
+      .where("profile.cpf = :cpf", { cpf: normalizedCpf });
 
     if (customerId) {
-      query.andWhere('profile.customer_id != :customerId', { customerId });
+      query.andWhere("profile.customer_id != :customerId", { customerId });
     }
 
     const existingProfile = await query.getOne();
 
     if (existingProfile) {
-      throw new AppError('CPF já cadastrado.', 409, 'CUSTOMER_CPF_ALREADY_EXISTS', {
-        field: 'cpf',
-        value: normalizedCpf,
-      });
+      throw new AppError(
+        "CPF já cadastrado.",
+        409,
+        "CUSTOMER_CPF_ALREADY_EXISTS",
+        {
+          field: "cpf",
+          value: normalizedCpf,
+        },
+      );
     }
   }
 
-  private async ensureCompanyCnpjIsAvailable(cnpj: string, customerId?: string): Promise<void> {
+  private async ensureCompanyCnpjIsAvailable(
+    cnpj: string,
+    customerId?: string,
+  ): Promise<void> {
     const normalizedCnpj = normalizeDigits(cnpj);
 
     if (!normalizedCnpj) {
@@ -578,25 +846,30 @@ export class TypeOrmCustomerRepository {
 
     const query = this.dataSource
       .getRepository(CustomerCompanyProfileOrmEntity)
-      .createQueryBuilder('profile')
-      .where('profile.cnpj = :cnpj', { cnpj: normalizedCnpj });
+      .createQueryBuilder("profile")
+      .where("profile.cnpj = :cnpj", { cnpj: normalizedCnpj });
 
     if (customerId) {
-      query.andWhere('profile.customer_id != :customerId', { customerId });
+      query.andWhere("profile.customer_id != :customerId", { customerId });
     }
 
     const existingProfile = await query.getOne();
 
     if (existingProfile) {
-      throw new AppError('CNPJ já cadastrado.', 409, 'CUSTOMER_CNPJ_ALREADY_EXISTS', {
-        field: 'cnpj',
-        value: normalizedCnpj,
-      });
+      throw new AppError(
+        "CNPJ já cadastrado.",
+        409,
+        "CUSTOMER_CNPJ_ALREADY_EXISTS",
+        {
+          field: "cnpj",
+          value: normalizedCnpj,
+        },
+      );
     }
   }
 
   async create(input: CreateCustomerInput): Promise<CustomerOrmEntity> {
-    if (input.personType === 'INDIVIDUAL') {
+    if (input.personType === "INDIVIDUAL") {
       await this.ensureIndividualCpfIsAvailable(input.profile.cpf);
     } else {
       await this.ensureCompanyCnpjIsAvailable(input.profile.cnpj);
@@ -612,7 +885,10 @@ export class TypeOrmCustomerRepository {
 
     applyCustomerCore(customer, input);
     customer.address = buildCustomerAddress(customer, input.address);
-    customer.financialProfile = buildFinancialProfile(customer, input.financial);
+    customer.financialProfile = buildFinancialProfile(
+      customer,
+      input.financial,
+    );
     customer.contacts = buildCustomerContacts(customer, input.contacts);
     customer.emails = buildCustomerEmails(customer, input.emails);
     customer.communicationPreferences = buildCommunicationPreferences(
@@ -620,81 +896,171 @@ export class TypeOrmCustomerRepository {
       input.communicationPreferences,
     );
 
-    if (input.personType === 'INDIVIDUAL') {
-      customer.individualProfile = buildIndividualProfile(customer, input.profile);
+    if (input.personType === "INDIVIDUAL") {
+      customer.individualProfile = buildIndividualProfile(
+        customer,
+        input.profile,
+      );
       customer.companyProfile = null;
       customer.responsibles = [];
     } else {
       customer.companyProfile = buildCompanyProfile(customer, input.profile);
       customer.individualProfile = null;
-      customer.responsibles = input.responsibles.map((responsible) => buildResponsible(customer, responsible));
+      customer.responsibles = input.responsibles.map((responsible) =>
+        buildResponsible(customer, responsible),
+      );
     }
 
     return this.dataSource.getRepository(CustomerOrmEntity).save(customer);
   }
 
   async findByIdOrFail(id: string): Promise<CustomerOrmEntity> {
-    const customer = await this.dataSource.getRepository(CustomerOrmEntity).findOne({
-      where: { id },
-      relations: customerRelations,
-    });
+    const customer = await this.dataSource
+      .getRepository(CustomerOrmEntity)
+      .findOne({
+        where: { id },
+        relations: customerRelations,
+      });
 
     if (!customer) {
-      throw new AppError('Cliente não encontrado.', 404, 'CUSTOMER_NOT_FOUND');
+      throw new AppError("Cliente não encontrado.", 404, "CUSTOMER_NOT_FOUND");
     }
 
     return customer;
   }
 
-  async update(id: string, input: UpdateCustomerInput): Promise<CustomerOrmEntity> {
+  async update(
+    id: string,
+    input: UpdateCustomerInput,
+  ): Promise<CustomerOrmEntity> {
     const customer = await this.findByIdOrFail(id);
 
     if (input.personType && input.personType !== customer.personType) {
-      throw new AppError('Não é permitido alterar o tipo de pessoa.', 400, 'INVALID_PERSON_TYPE_CHANGE');
+      throw new AppError(
+        "Não é permitido alterar o tipo de pessoa.",
+        400,
+        "INVALID_PERSON_TYPE_CHANGE",
+      );
     }
 
     applyCustomerCore(customer, input);
-    customer.address = buildCustomerAddress(customer, input.address, customer.address);
-    customer.financialProfile = buildFinancialProfile(customer, input.financial, customer.financialProfile);
-    customer.contacts = buildCustomerContacts(customer, input.contacts, customer.contacts);
-    customer.emails = buildCustomerEmails(customer, input.emails, customer.emails);
+    customer.address = buildCustomerAddress(
+      customer,
+      input.address,
+      customer.address,
+    );
+    customer.financialProfile = buildFinancialProfile(
+      customer,
+      input.financial,
+      customer.financialProfile,
+    );
+    customer.contacts = buildCustomerContacts(
+      customer,
+      input.contacts,
+      customer.contacts,
+    );
+    customer.emails = buildCustomerEmails(
+      customer,
+      input.emails,
+      customer.emails,
+    );
     customer.communicationPreferences = buildCommunicationPreferences(
       customer,
       input.communicationPreferences,
       customer.communicationPreferences,
     );
 
-    if (customer.personType === 'INDIVIDUAL') {
+    if (customer.personType === "INDIVIDUAL") {
       if (input.responsibles && input.responsibles.length > 0) {
         throw new AppError(
-          'Clientes pessoa física não podem ter responsáveis.',
+          "Clientes pessoa física não podem ter responsáveis.",
           400,
-          'INVALID_RESPONSIBLES_FOR_INDIVIDUAL',
+          "INVALID_RESPONSIBLES_FOR_INDIVIDUAL",
         );
       }
 
       if (input.profile) {
-        if ('cpf' in input.profile && input.profile.cpf) {
-          await this.ensureIndividualCpfIsAvailable(input.profile.cpf, customer.id);
+        if ("cpf" in input.profile && input.profile.cpf) {
+          await this.ensureIndividualCpfIsAvailable(
+            input.profile.cpf,
+            customer.id,
+          );
         }
 
-        customer.individualProfile = buildIndividualProfile(customer, input.profile, customer.individualProfile);
+        customer.individualProfile = buildIndividualProfile(
+          customer,
+          input.profile,
+          customer.individualProfile,
+        );
       }
     } else {
       if (input.profile) {
-        if ('cnpj' in input.profile && input.profile.cnpj) {
-          await this.ensureCompanyCnpjIsAvailable(input.profile.cnpj, customer.id);
+        if ("cnpj" in input.profile && input.profile.cnpj) {
+          await this.ensureCompanyCnpjIsAvailable(
+            input.profile.cnpj,
+            customer.id,
+          );
         }
 
-        customer.companyProfile = buildCompanyProfile(customer, input.profile, customer.companyProfile);
+        customer.companyProfile = buildCompanyProfile(
+          customer,
+          input.profile,
+          customer.companyProfile,
+        );
       }
 
       if (input.responsibles) {
         if (input.responsibles.length === 0) {
-          throw new AppError('Clientes pessoa jurídica devem ter pelo menos um responsável.', 400, 'RESPONSIBLE_REQUIRED');
+          throw new AppError(
+            "Clientes pessoa jurídica devem ter pelo menos um responsável.",
+            400,
+            "RESPONSIBLE_REQUIRED",
+          );
         }
 
-        customer.responsibles = input.responsibles.map((responsible) => buildResponsible(customer, responsible));
+        const availableResponsibles = [...customer.responsibles];
+        const canFallbackToCurrentOrder =
+          availableResponsibles.length === input.responsibles.length;
+
+        customer.responsibles = input.responsibles.map((responsibleInput) => {
+          const normalizedCpf = normalizeDigits(responsibleInput.cpf);
+          const normalizedFullName = normalizeComparableText(
+            responsibleInput.fullName,
+          );
+          const matchingResponsibleIndex = availableResponsibles.findIndex(
+            (existingResponsible) => {
+              if (
+                responsibleInput.id &&
+                existingResponsible.id === responsibleInput.id
+              ) {
+                return true;
+              }
+
+              if (normalizedCpf && existingResponsible.cpf === normalizedCpf) {
+                return true;
+              }
+
+              return (
+                normalizeComparableText(existingResponsible.fullName) ===
+                  normalizedFullName &&
+                existingResponsible.birthDate ===
+                  (responsibleInput.birthDate ?? null)
+              );
+            },
+          );
+          const existingResponsible =
+            matchingResponsibleIndex >= 0
+              ? availableResponsibles.splice(matchingResponsibleIndex, 1)[0]
+              : canFallbackToCurrentOrder
+                ? availableResponsibles.shift() ?? null
+                : null;
+
+          return buildResponsible(
+            customer,
+            responsibleInput,
+            existingResponsible,
+          );
+        });
       }
     }
 
@@ -702,14 +1068,16 @@ export class TypeOrmCustomerRepository {
   }
 
   async list(page: number, limit: number) {
-    const [items, total] = await this.dataSource.getRepository(CustomerOrmEntity).findAndCount({
-      relations: customerRelations,
-      order: {
-        createdAt: 'DESC',
-      },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const [items, total] = await this.dataSource
+      .getRepository(CustomerOrmEntity)
+      .findAndCount({
+        relations: customerRelations,
+        order: {
+          createdAt: "DESC",
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+      });
 
     return {
       items,
@@ -724,20 +1092,24 @@ export class TypeOrmCustomerRepository {
 
     const items = await this.dataSource
       .getRepository(CustomerOrmEntity)
-      .createQueryBuilder('customer')
-      .leftJoinAndSelect('customer.individualProfile', 'individualProfile')
-      .leftJoinAndSelect('customer.companyProfile', 'companyProfile')
+      .createQueryBuilder("customer")
+      .leftJoinAndSelect("customer.individualProfile", "individualProfile")
+      .leftJoinAndSelect("customer.companyProfile", "companyProfile")
       .where(
         new Brackets((builder) => {
           builder
-            .where('individualProfile.full_name ILIKE :term', { term })
-            .orWhere('companyProfile.corporate_name ILIKE :term', { term })
-            .orWhere('companyProfile.trade_name ILIKE :term', { term })
-            .orWhere('individualProfile.cpf ILIKE :document', { document: `%${normalizeDigits(query) ?? query}%` })
-            .orWhere('companyProfile.cnpj ILIKE :document', { document: `%${normalizeDigits(query) ?? query}%` });
+            .where("individualProfile.full_name ILIKE :term", { term })
+            .orWhere("companyProfile.corporate_name ILIKE :term", { term })
+            .orWhere("companyProfile.trade_name ILIKE :term", { term })
+            .orWhere("individualProfile.cpf ILIKE :document", {
+              document: `%${normalizeDigits(query) ?? query}%`,
+            })
+            .orWhere("companyProfile.cnpj ILIKE :document", {
+              document: `%${normalizeDigits(query) ?? query}%`,
+            });
         }),
       )
-      .orderBy('customer.created_at', 'DESC')
+      .orderBy("customer.created_at", "DESC")
       .take(limit)
       .getMany();
 
@@ -745,13 +1117,13 @@ export class TypeOrmCustomerRepository {
       id: customer.id,
       personType: customer.personType,
       document:
-        customer.personType === 'INDIVIDUAL'
-          ? customer.individualProfile?.cpf ?? null
-          : customer.companyProfile?.cnpj ?? null,
+        customer.personType === "INDIVIDUAL"
+          ? (customer.individualProfile?.cpf ?? null)
+          : (customer.companyProfile?.cnpj ?? null),
       name:
-        customer.personType === 'INDIVIDUAL'
-          ? customer.individualProfile?.fullName ?? null
-          : customer.companyProfile?.corporateName ?? null,
+        customer.personType === "INDIVIDUAL"
+          ? (customer.individualProfile?.fullName ?? null)
+          : (customer.companyProfile?.corporateName ?? null),
       tradeName: customer.companyProfile?.tradeName ?? null,
     }));
   }
@@ -761,29 +1133,47 @@ export class TypeOrmCustomerRepository {
     await this.dataSource.getRepository(CustomerOrmEntity).softDelete(id);
   }
 
-  async addResponsible(customerId: string, input: ResponsibleInput): Promise<ResponsibleOrmEntity> {
+  async addResponsible(
+    customerId: string,
+    input: ResponsibleInput,
+  ): Promise<ResponsibleOrmEntity> {
     const customer = await this.findByIdOrFail(customerId);
 
-    if (customer.personType !== 'COMPANY') {
-      throw new AppError('Apenas clientes pessoa jurídica podem ter responsáveis.', 400, 'RESPONSIBLE_NOT_ALLOWED');
+    if (customer.personType !== "COMPANY") {
+      throw new AppError(
+        "Apenas clientes pessoa jurídica podem ter responsáveis.",
+        400,
+        "RESPONSIBLE_NOT_ALLOWED",
+      );
     }
 
     const responsible = buildResponsible(customer, input);
-    return this.dataSource.getRepository(ResponsibleOrmEntity).save(responsible);
+    return this.dataSource
+      .getRepository(ResponsibleOrmEntity)
+      .save(responsible);
   }
 
-  async findResponsibleOrFail(customerId: string, responsibleId: string): Promise<ResponsibleOrmEntity> {
-    const responsible = await this.dataSource.getRepository(ResponsibleOrmEntity).findOne({
-      where: { id: responsibleId, customerId },
-      relations: {
-        address: true,
-        contacts: true,
-        emails: true,
-      },
-    });
+  async findResponsibleOrFail(
+    customerId: string,
+    responsibleId: string,
+  ): Promise<ResponsibleOrmEntity> {
+    const responsible = await this.dataSource
+      .getRepository(ResponsibleOrmEntity)
+      .findOne({
+        where: { id: responsibleId, customerId },
+        relations: {
+          address: true,
+          contacts: true,
+          emails: true,
+        },
+      });
 
     if (!responsible) {
-      throw new AppError('Responsável não encontrado.', 404, 'RESPONSIBLE_NOT_FOUND');
+      throw new AppError(
+        "Responsável não encontrado.",
+        404,
+        "RESPONSIBLE_NOT_FOUND",
+      );
     }
 
     return responsible;
@@ -800,7 +1190,7 @@ export class TypeOrmCustomerRepository {
         emails: true,
       },
       order: {
-        createdAt: 'DESC',
+        createdAt: "DESC",
       },
     });
   }
@@ -811,26 +1201,38 @@ export class TypeOrmCustomerRepository {
     input: UpdateResponsibleInput,
   ): Promise<ResponsibleOrmEntity> {
     const customer = await this.findByIdOrFail(customerId);
-    const existingResponsible = await this.findResponsibleOrFail(customerId, responsibleId);
+    const existingResponsible = await this.findResponsibleOrFail(
+      customerId,
+      responsibleId,
+    );
     const responsible = buildResponsible(customer, input, existingResponsible);
     responsible.id = responsibleId;
-    return this.dataSource.getRepository(ResponsibleOrmEntity).save(responsible);
+    return this.dataSource
+      .getRepository(ResponsibleOrmEntity)
+      .save(responsible);
   }
 
-  async removeResponsible(customerId: string, responsibleId: string): Promise<void> {
+  async removeResponsible(
+    customerId: string,
+    responsibleId: string,
+  ): Promise<void> {
     const customer = await this.findByIdOrFail(customerId);
 
-    if (customer.personType !== 'COMPANY') {
-      throw new AppError('Apenas clientes pessoa jurídica podem ter responsáveis.', 400, 'RESPONSIBLE_NOT_ALLOWED');
+    if (customer.personType !== "COMPANY") {
+      throw new AppError(
+        "Apenas clientes pessoa jurídica podem ter responsáveis.",
+        400,
+        "RESPONSIBLE_NOT_ALLOWED",
+      );
     }
 
     const responsibles = await this.listResponsibles(customerId);
 
     if (responsibles.length <= 1) {
       throw new AppError(
-        'Clientes pessoa jurídica devem manter pelo menos um responsável.',
+        "Clientes pessoa jurídica devem manter pelo menos um responsável.",
         400,
-        'LAST_RESPONSIBLE_NOT_ALLOWED',
+        "LAST_RESPONSIBLE_NOT_ALLOWED",
       );
     }
 

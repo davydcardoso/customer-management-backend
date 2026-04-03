@@ -1,11 +1,11 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 import {
   communicationChannels,
   communicationTopics,
   contactTypes,
   personTypes,
-} from '../../domain/customer-enums';
+} from "../../domain/customer-enums";
 
 const nullableTrimmedString = z
   .string()
@@ -55,6 +55,7 @@ const addressSchema = z.object({
 });
 
 const contactSchema = z.object({
+  id: z.string().uuid().optional(),
   value: z.string().trim().min(1),
   type: z.enum(contactTypes),
   isWhatsapp: z.boolean().optional().default(false),
@@ -62,17 +63,20 @@ const contactSchema = z.object({
 });
 
 const emailSchema = z.object({
+  id: z.string().uuid().optional(),
   email: z.email(),
   label: nullableTrimmedString,
 });
 
 const communicationPreferenceSchema = z.object({
+  id: z.string().uuid().optional(),
   channel: z.enum(communicationChannels),
   topic: z.enum(communicationTopics),
   enabled: z.boolean(),
 });
 
 const responsibleSchema = z.object({
+  id: z.string().uuid().optional(),
   fullName: z.string().trim().min(1),
   cpf: nullableTrimmedString,
   rg: nullableTrimmedString,
@@ -120,7 +124,7 @@ const companyProfileSchema = z.object({
   issWithheld: booleanWithDefault,
 });
 
-export const createCustomerSchema = z.discriminatedUnion('personType', [
+export const createCustomerSchema = z.discriminatedUnion("personType", [
   z.object({
     personType: z.literal(personTypes[0]),
     core: coreSchema.optional().default({}),
@@ -129,7 +133,10 @@ export const createCustomerSchema = z.discriminatedUnion('personType', [
     address: addressSchema.optional().default({}),
     contacts: z.array(contactSchema).optional().default([]),
     emails: z.array(emailSchema).optional().default([]),
-    communicationPreferences: z.array(communicationPreferenceSchema).optional().default([]),
+    communicationPreferences: z
+      .array(communicationPreferenceSchema)
+      .optional()
+      .default([]),
     responsibles: z.array(responsibleSchema).max(0).optional().default([]),
   }),
   z.object({
@@ -140,7 +147,10 @@ export const createCustomerSchema = z.discriminatedUnion('personType', [
     address: addressSchema.optional().default({}),
     contacts: z.array(contactSchema).optional().default([]),
     emails: z.array(emailSchema).optional().default([]),
-    communicationPreferences: z.array(communicationPreferenceSchema).optional().default([]),
+    communicationPreferences: z
+      .array(communicationPreferenceSchema)
+      .optional()
+      .default([]),
     responsibles: z.array(responsibleSchema).min(1),
   }),
 ]);
@@ -148,7 +158,9 @@ export const createCustomerSchema = z.discriminatedUnion('personType', [
 export const updateCustomerSchema = z.object({
   personType: z.enum(personTypes).optional(),
   core: coreSchema.partial().optional(),
-  profile: z.union([individualProfileSchema.partial(), companyProfileSchema.partial()]).optional(),
+  profile: z
+    .union([individualProfileSchema.partial(), companyProfileSchema.partial()])
+    .optional(),
   financial: financialSchema.partial().optional(),
   address: addressSchema.partial().optional(),
   contacts: z.array(contactSchema).optional(),
