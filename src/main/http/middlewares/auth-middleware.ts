@@ -7,14 +7,14 @@ export const authMiddleware = (request: Request, _response: Response, next: Next
   const authorization = request.headers.authorization;
 
   if (!authorization) {
-    next(new AppError('Authentication token not provided.', 401, 'UNAUTHORIZED'));
+    next(new AppError('Token de autenticação não informado.', 401, 'UNAUTHORIZED'));
     return;
   }
 
   const [type, token] = authorization.split(' ');
 
   if (type !== 'Bearer' || !token) {
-    next(new AppError('Invalid authentication header.', 401, 'UNAUTHORIZED'));
+    next(new AppError('Cabeçalho de autenticação inválido.', 401, 'UNAUTHORIZED'));
     return;
   }
 

@@ -543,7 +543,65 @@ export const mapCustomerResponse = (customer: CustomerOrmEntity) => ({
 export class TypeOrmCustomerRepository {
   constructor(private readonly dataSource: DataSource) {}
 
+  private async ensureIndividualCpfIsAvailable(cpf: string, customerId?: string): Promise<void> {
+    const normalizedCpf = normalizeDigits(cpf);
+
+    if (!normalizedCpf) {
+      return;
+    }
+
+    const query = this.dataSource
+      .getRepository(CustomerIndividualProfileOrmEntity)
+      .createQueryBuilder('profile')
+      .where('profile.cpf = :cpf', { cpf: normalizedCpf });
+
+    if (customerId) {
+      query.andWhere('profile.customer_id != :customerId', { customerId });
+    }
+
+    const existingProfile = await query.getOne();
+
+    if (existingProfile) {
+      throw new AppError('CPF já cadastrado.', 409, 'CUSTOMER_CPF_ALREADY_EXISTS', {
+        field: 'cpf',
+        value: normalizedCpf,
+      });
+    }
+  }
+
+  private async ensureCompanyCnpjIsAvailable(cnpj: string, customerId?: string): Promise<void> {
+    const normalizedCnpj = normalizeDigits(cnpj);
+
+    if (!normalizedCnpj) {
+      return;
+    }
+
+    const query = this.dataSource
+      .getRepository(CustomerCompanyProfileOrmEntity)
+      .createQueryBuilder('profile')
+      .where('profile.cnpj = :cnpj', { cnpj: normalizedCnpj });
+
+    if (customerId) {
+      query.andWhere('profile.customer_id != :customerId', { customerId });
+    }
+
+    const existingProfile = await query.getOne();
+
+    if (existingProfile) {
+      throw new AppError('CNPJ já cadastrado.', 409, 'CUSTOMER_CNPJ_ALREADY_EXISTS', {
+        field: 'cnpj',
+        value: normalizedCnpj,
+      });
+    }
+  }
+
   async create(input: CreateCustomerInput): Promise<CustomerOrmEntity> {
+    if (input.personType === 'INDIVIDUAL') {
+      await this.ensureIndividualCpfIsAvailable(input.profile.cpf);
+    } else {
+      await this.ensureCompanyCnpjIsAvailable(input.profile.cnpj);
+    }
+
     const customer = new CustomerOrmEntity();
     customer.personType = input.personType;
     customer.active = true;
@@ -582,7 +640,7 @@ export class TypeOrmCustomerRepository {
     });
 
     if (!customer) {
-      throw new AppError('Customer not found.', 404, 'CUSTOMER_NOT_FOUND');
+      throw new AppError('Cliente não encontrado.', 404, 'CUSTOMER_NOT_FOUND');
     }
 
     return customer;
@@ -592,7 +650,7 @@ export class TypeOrmCustomerRepository {
     const customer = await this.findByIdOrFail(id);
 
     if (input.personType && input.personType !== customer.personType) {
-      throw new AppError('Changing person type is not supported.', 400, 'INVALID_PERSON_TYPE_CHANGE');
+      throw new AppError('Não é permitido alterar o tipo de pessoa.', 400, 'INVALID_PERSON_TYPE_CHANGE');
     }
 
     applyCustomerCore(customer, input);
@@ -609,23 +667,31 @@ export class TypeOrmCustomerRepository {
     if (customer.personType === 'INDIVIDUAL') {
       if (input.responsibles && input.responsibles.length > 0) {
         throw new AppError(
-          'Individual customers cannot have responsibles.',
+          'Clientes pessoa física não podem ter responsáveis.',
           400,
           'INVALID_RESPONSIBLES_FOR_INDIVIDUAL',
         );
       }
 
       if (input.profile) {
+        if ('cpf' in input.profile && input.profile.cpf) {
+          await this.ensureIndividualCpfIsAvailable(input.profile.cpf, customer.id);
+        }
+
         customer.individualProfile = buildIndividualProfile(customer, input.profile, customer.individualProfile);
       }
     } else {
       if (input.profile) {
+        if ('cnpj' in input.profile && input.profile.cnpj) {
+          await this.ensureCompanyCnpjIsAvailable(input.profile.cnpj, customer.id);
+        }
+
         customer.companyProfile = buildCompanyProfile(customer, input.profile, customer.companyProfile);
       }
 
       if (input.responsibles) {
         if (input.responsibles.length === 0) {
-          throw new AppError('Company customers must have at least one responsible.', 400, 'RESPONSIBLE_REQUIRED');
+          throw new AppError('Clientes pessoa jurídica devem ter pelo menos um responsável.', 400, 'RESPONSIBLE_REQUIRED');
         }
 
         customer.responsibles = input.responsibles.map((responsible) => buildResponsible(customer, responsible));
@@ -699,7 +765,7 @@ export class TypeOrmCustomerRepository {
     const customer = await this.findByIdOrFail(customerId);
 
     if (customer.personType !== 'COMPANY') {
-      throw new AppError('Only company customers can have responsibles.', 400, 'RESPONSIBLE_NOT_ALLOWED');
+      throw new AppError('Apenas clientes pessoa jurídica podem ter responsáveis.', 400, 'RESPONSIBLE_NOT_ALLOWED');
     }
 
     const responsible = buildResponsible(customer, input);
@@ -717,7 +783,7 @@ export class TypeOrmCustomerRepository {
     });
 
     if (!responsible) {
-      throw new AppError('Responsible not found.', 404, 'RESPONSIBLE_NOT_FOUND');
+      throw new AppError('Responsável não encontrado.', 404, 'RESPONSIBLE_NOT_FOUND');
     }
 
     return responsible;
@@ -755,14 +821,14 @@ export class TypeOrmCustomerRepository {
     const customer = await this.findByIdOrFail(customerId);
 
     if (customer.personType !== 'COMPANY') {
-      throw new AppError('Only company customers can have responsibles.', 400, 'RESPONSIBLE_NOT_ALLOWED');
+      throw new AppError('Apenas clientes pessoa jurídica podem ter responsáveis.', 400, 'RESPONSIBLE_NOT_ALLOWED');
     }
 
     const responsibles = await this.listResponsibles(customerId);
 
     if (responsibles.length <= 1) {
       throw new AppError(
-        'Company customers must keep at least one responsible.',
+        'Clientes pessoa jurídica devem manter pelo menos um responsável.',
         400,
         'LAST_RESPONSIBLE_NOT_ALLOWED',
       );

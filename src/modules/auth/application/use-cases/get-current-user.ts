@@ -8,7 +8,7 @@ export const getCurrentUser = async (dataSource: DataSource, userId: string) => 
   const user = await userRepository.findById(userId);
 
   if (!user || !user.active) {
-    throw new AppError('User not found.', 404, 'USER_NOT_FOUND');
+    throw new AppError('Usuário não encontrado.', 404, 'USER_NOT_FOUND');
   }
 
   return {

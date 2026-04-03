@@ -209,7 +209,7 @@ export class TypeOrmFormMetadataRepository {
     });
 
     if (!field) {
-      throw new AppError('Form field configuration not found.', 404, 'FORM_FIELD_NOT_FOUND');
+      throw new AppError('Configuração do campo do formulário não encontrada.', 404, 'FORM_FIELD_NOT_FOUND');
     }
 
     if (input.section) {
@@ -221,7 +221,7 @@ export class TypeOrmFormMetadataRepository {
       });
 
       if (!sectionExists) {
-        throw new AppError('Target section not found for form field.', 400, 'FORM_SECTION_NOT_FOUND');
+        throw new AppError('Seção de destino do campo não encontrada.', 400, 'FORM_SECTION_NOT_FOUND');
       }
     }
 

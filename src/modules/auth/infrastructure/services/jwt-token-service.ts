@@ -46,7 +46,7 @@ export const verifyAccessToken = (token: string): AuthTokenPayload => {
       type: 'access',
     };
   } catch {
-    throw new AppError('Invalid or expired access token.', 401, 'UNAUTHORIZED');
+    throw new AppError('Token de acesso inválido ou expirado.', 401, 'UNAUTHORIZED');
   }
 };
 
@@ -64,6 +64,6 @@ export const verifyRefreshToken = (token: string): AuthTokenPayload => {
       type: 'refresh',
     };
   } catch {
-    throw new AppError('Invalid or expired refresh token.', 401, 'UNAUTHORIZED');
+    throw new AppError('Token de atualização inválido ou expirado.', 401, 'UNAUTHORIZED');
   }
 };

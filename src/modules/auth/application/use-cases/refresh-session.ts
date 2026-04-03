@@ -25,13 +25,13 @@ export const refreshSession = async (dataSource: DataSource, input: RefreshSessi
   const persistedToken = await refreshTokenRepository.findActiveByHash(tokenHash);
 
   if (!persistedToken || persistedToken.userId !== payload.sub || persistedToken.expiresAt < new Date()) {
-    throw new AppError('Refresh token is invalid.', 401, 'INVALID_REFRESH_TOKEN');
+    throw new AppError('Token de atualização inválido.', 401, 'INVALID_REFRESH_TOKEN');
   }
 
   const user = await userRepository.findById(payload.sub);
 
   if (!user || !user.active) {
-    throw new AppError('User not found or inactive.', 401, 'UNAUTHORIZED');
+    throw new AppError('Usuário não encontrado ou inativo.', 401, 'UNAUTHORIZED');
   }
 
   await refreshTokenRepository.revoke(persistedToken.id);

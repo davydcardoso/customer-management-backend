@@ -21,13 +21,13 @@ export const loginUser = async (dataSource: DataSource, input: LoginUserInput) =
   const user = await userRepository.findByUsername(input.username);
 
   if (!user || !user.active) {
-    throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
+    throw new AppError('Credenciais inválidas.', 401, 'INVALID_CREDENTIALS');
   }
 
   const passwordMatches = await verifyPassword(input.password, user.passwordHash);
 
   if (!passwordMatches) {
-    throw new AppError('Invalid credentials.', 401, 'INVALID_CREDENTIALS');
+    throw new AppError('Credenciais inválidas.', 401, 'INVALID_CREDENTIALS');
   }
 
   const accessToken = signAccessToken({
